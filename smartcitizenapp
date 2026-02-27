@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Citizen App</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        background: #f4f6f9;
+    }
+    header {
+        background: #2c3e50;
+        color: white;
+        padding: 15px;
+        text-align: center;
+    }
+    .container {
+        padding: 20px;
+        max-width: 600px;
+        margin: auto;
+    }
+    input, textarea, select, button {
+        width: 100%;
+        padding: 10px;
+        margin: 8px 0;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+    }
+    button {
+        background: #3498db;
+        color: white;
+        border: none;
+        cursor: pointer;
+        font-weight: bold;
+    }
+    button:hover {
+        background: #2980b9;
+    }
+    .card {
+        background: white;
+        padding: 15px;
+        border-radius: 12px;
+        margin-top: 10px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .status {
+        font-weight: bold;
+    }
+</style>
+</head>
+<body>
+
+<header>
+    <h2>Smart Citizen App</h2>
+    <p>Единое приложение горожанина</p>
+</header>
+
+<div class="container">
+
+    <h3>Сообщить о проблеме</h3>
+    <textarea id="description" placeholder="Опишите проблему..."></textarea>
+    <input type="file" id="photo" accept="image/*">
+    <button onclick="getLocation()">Определить геолокацию</button>
+    <p id="locationText">Геолокация: не определена</p>
+    <button onclick="submitIssue()">Отправить заявку</button>
+
+    <h3>Мои заявки</h3>
+    <div id="issuesList"></div>
+
+</div>
+
+<script>
+let currentLocation = null;
+
+function getLocation() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(position => {
+            currentLocation = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude
+            };
+            document.getElementById("locationText").innerText =
+                "Геолокация: " + currentLocation.lat.toFixed(4) + ", " + currentLocation.lng.toFixed(4);
+        });
+    } else {
+        alert("Геолокация не поддерживается");
+    }
+}
+
+// Примитивная AI-классификация (ключевые слова)
+function classifyIssue(text) {
+    text = text.toLowerCase();
+    if (text.includes("дорог")) return "Проблема с дорогой";
+    if (text.includes("свет") || text.includes("освещ")) return "Освещение";
+    if (text.includes("мусор")) return "Мусор";
+    return "Другое";
+}
+
+function submitIssue() {
+    const description = document.getElementById("description").value;
+    if (!description || !currentLocation) {
+        alert("Заполните описание и определите геолокацию!");
+        return;
+    }
+
+    const category = classifyIssue(description);
+
+    const issue = {
+        id: Date.now(),
+        description,
+        category,
+        location: currentLocation,
+        status: "Принято"
+    };
+
+    let issues = JSON.parse(localStorage.getItem("issues")) || [];
+    issues.push(issue);
+    localStorage.setItem("issues", JSON.stringify(issues));
+
+    document.getElementById("description").value = "";
+    document.getElementById("locationText").innerText = "Геолокация: не определена";
+    currentLocation = null;
+
+    renderIssues();
+}
+
+function renderIssues() {
+    const issues = JSON.parse(localStorage.getItem("issues")) || [];
+    const list = document.getElementById("issuesList");
+    list.innerHTML = "";
+
+    issues.forEach(issue => {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        card.innerHTML = `
+            <p><strong>Категория:</strong> ${issue.category}</p>
+            <p>${issue.description}</p>
+            <p>📍 ${issue.location.lat.toFixed(4)}, ${issue.location.lng.toFixed(4)}</p>
+            <p class="status">Статус: ${issue.status}</p>
+            <button onclick="updateStatus(${issue.id})">Обновить статус</button>
+        `;
+
+        list.appendChild(card);
+    });
+}
+
+function updateStatus(id) {
+    let issues = JSON.parse(localStorage.getItem("issues")) || [];
+    issues = issues.map(issue => {
+        if (issue.id === id) {
+            if (issue.status === "Принято") issue.status = "В работе";
+            else if (issue.status === "В работе") issue.status = "Решено";
+        }
+        return issue;
+    });
+    localStorage.setItem("issues", JSON.stringify(issues));
+    renderIssues();
+}
+
+renderIssues();
+</script>
+
+</body>
+</html>
